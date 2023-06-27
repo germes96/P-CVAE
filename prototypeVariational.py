@@ -67,10 +67,10 @@ class VariationalEncoder(nn.Module):
         )
         self.linear_shape = list(self.feature_extractor(torch.rand(input_shape)).shape)[1]
 
-        self.conv1 = nn.Conv1d(in_channels=in_channels, out_channels=8, kernel_size=3, padding=1, bias=False)
-        self.conv2 = nn.Conv1d(in_channels=8, out_channels=16, kernel_size=3, padding=2, bias=False)
-        self.batch2 = nn.BatchNorm1d(16)
-        self.conv3 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=2, padding=0)
+        # self.conv1 = nn.Conv1d(in_channels=in_channels, out_channels=8, kernel_size=3, padding=1, bias=False)
+        # self.conv2 = nn.Conv1d(in_channels=8, out_channels=16, kernel_size=3, padding=2, bias=False)
+        # self.batch2 = nn.BatchNorm1d(16)
+        # self.conv3 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=2, padding=0)
         self.linear1 = torch.nn.Linear(self.linear_shape, 128)
         self.linear2 = nn.Linear(128, latent_dims)
         self.linear3 = nn.Linear(128, latent_dims)
@@ -288,8 +288,8 @@ class ProtoVAELoss(nn.Module):
         The reduction factor of the Kullback-Leibler divergence
     """
     def forward(self, model,prediction,target, input, input_decoded, alpha_R1 = 0.5, alpha_R2 = 0.5, alpha_R3=0.02,  kld_weight=0.0025):
-        classif_loss = F.nll_loss(prediction, target)
-        reconst_error = F.mse_loss(input_decoded, input)
+        classif_loss = F.nll_loss(prediction, target) #classif error
+        reconst_error = F.mse_loss(input_decoded, input) # reconst error
         kl_loss = model.vae.encoder.kl * kld_weight
         R_1 = model.vae.proto.R_1 * alpha_R1
         R_2 = model.vae.proto.R_2 * alpha_R2 

@@ -83,7 +83,7 @@ def loadPKLDataset(path, batch_size=256, validation_plit=False, valid_size=0.1, 
             # create data loader
             main_loader = DataLoader(list(zip(X_main, y_main)), shuffle=True, batch_size=batch_size)
             valid_loader = DataLoader(list(zip(X_valid,y_valid)), batch_size=batch_size)
-            return main_loader, valid_loader, data_shape, label_number, encoder
+            return main_loader, valid_loader, data_shape, label_number, encoder 
         else:
             # create data loader
             main_loader = DataLoader(list(zip(X, y)), shuffle=True, batch_size=batch_size)
