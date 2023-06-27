@@ -73,7 +73,7 @@ def train_model(model, train_loader, valid_loader, label_encoder, epoch_number=5
         print(f"EPOCH: ", epoch + start_epoch +1, f"/{epoch_number+ start_epoch}")
 
         #train and valid
-        train_loss, optimizer = TrainUtils.train(model,device,train_loader,optim)
+        train_loss, optimizer, prototypes = TrainUtils.train(model,device,train_loader,optim)
         val_loss, acc, correct_predict, _ = TrainUtils.valid(model,device,valid_loader, label_encoder=label_encoder)
 
         # Save best model
@@ -92,13 +92,23 @@ def train_model(model, train_loader, valid_loader, label_encoder, epoch_number=5
              "valid_acc": acc.item(),
              "best_epochs": best_epochs
         })
-
         #display epoch info:
         log = f"epoch: {epoch + start_epoch +1}, lr: {optim.param_groups[0]['lr']} - train loss: {train_loss} - valid loss: {val_loss}, valid ACC: {100. * correct_predict / len(valid_loader.dataset)}"
         print(log)
         utils.saveTrainLog(path=f"{save_path}{seed}", log=log)
+    #save prototype``
+    decoded_proto = model.vae.decoder(prototypes).detach().tolist()
+    proto = []
+    for i in range(len(prototypes.detach().tolist())):
+        p = prototypes.detach().tolist()[i]
+        proto.append({
+            "id": i,
+            "latent": str(p).replace(",",""),
+            "decoded": str(decoded_proto[i][0]).replace(",",""),
+        })
     utils.savepackage(path=f"{save_path}{seed}")
     utils.saveTrainStatsCSV(path=f"{save_path}{seed}", stats=stats)
+    utils.saveTrainStatsCSV(path=f"{save_path}{seed}", stats=proto, file_name="prototype.csv", open_option='w')
     return model, stats
 
 def test_model(model, test_loader, label_encoder, seed = 0):

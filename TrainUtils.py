@@ -25,10 +25,12 @@ def train(model, device, dataloader, optimizer):
     # Iterate the dataloader
     printProgressBar(0, len(dataloader), prefix = 'Train:', suffix = 'Complete', length = 50)
     i = 1
+    proto = None
     for x, y in dataloader:
         # Move tensor to the proper device
         x =  x.to(device)
-        predic, decoded, _ = model(x)
+        predic, decoded, prototypes = model(x)
+        proto = prototypes
         loss =  loss_F(model, target=y, prediction=predic, input_decoded=decoded, input=x)
         #Start back propoagation
         optimizer.zero_grad() #avoid grad accumulation
@@ -40,7 +42,7 @@ def train(model, device, dataloader, optimizer):
         i=i+1
     avg_loss = train_loss/ len(dataloader.dataset)
     time.sleep(0.1)
-    return avg_loss, optimizer
+    return avg_loss, optimizer, proto
 
 #Validation function definition
 """

@@ -126,11 +126,11 @@ def saveTrainLog(path, log):
     with open(f'{path}/train_log.log', 'a') as file:
         file.write(f'{log}\n')
 
-def saveTrainStatsCSV(path, stats, file_name = "train_stats.csv"):
+def saveTrainStatsCSV(path, stats, file_name = "train_stats.csv", open_option="a+"):
     file_exist = False
     if os.path.exists(f'{path}/{file_name}'):
         file_exist = True
-    with open(f'{path}/{file_name}', 'a+') as f:
+    with open(f'{path}/{file_name}', open_option) as f:
         # Write all the dictionary keys in a file with commas separated.
         if not file_exist:
             f.write(','.join(stats[0].keys()))
