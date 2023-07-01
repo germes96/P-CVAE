@@ -142,6 +142,7 @@ if __name__ == "__main__":
     parser.add_argument("-l", dest="latent_dim", help="Latent space dimension.", type=int, default=4)
     parser.add_argument("-p", dest="prototype_number", help="Latent space dimension. -1 if you want this value to be equal to the number of classes in the dataset", type=int, default=-1)
     parser.add_argument("--lr", dest="learning_rate", help="The learning rate in the optimization", type=float, default=1e-3)
+    parser.add_argument("--train-projection", dest="train_projection", help="if a projection for training data needs to be generated (y/n)", type=str, default="n")
     args = parser.parse_args()
     #Load params
     seed = args.seed
@@ -175,6 +176,10 @@ if __name__ == "__main__":
         print(model)
         # Train model
         model, stats = train_model(model, train_loader, valid_loader, label_encoder=encoder, epoch_number=epoch_number, seed=seed, lr=lr)
+        if args.train_projection == "y":
+            utils.TSEVisualization(dataloader=train_loader, model=model, Projector=model.vae.encoder, device=device, path=f"{save_path}{seed}", type="train")
+        utils.TSEVisualization(dataloader=valid_loader, model=model, Projector=model.vae.encoder, device=device, path=f"{save_path}{seed}", type="valid")
+
     elif args.type ==  "test":
         if args.ext == "csv":
             test_loader, input_shape, label_nb, encoder = utils.loadCSVDataset(path=args.dataset, validation_plit=False)
@@ -194,6 +199,5 @@ if __name__ == "__main__":
         report = classification_report(labels['target'], labels['predict'])
         print(f"\n\n{report}")
         utils.classification_report_csv(path=f"{save_path}{seed}", report=report)
-
-
+        utils.TSEVisualization(dataloader=test_loader, model=model, Projector=model.vae.encoder, device=device, path=f"{save_path}{seed}")
     # print(stats)

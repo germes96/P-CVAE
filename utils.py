@@ -16,6 +16,9 @@ from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from csv import DictReader
+from sklearn.manifold import TSNE
+import plotly.express as px
+from tqdm import tqdm
 
 def str2List(values):
     result = []
@@ -169,5 +172,37 @@ def classification_report_to_dataframe(str_representation_of_report):
                 pass
     report_to_df = pd.DataFrame(data=values, columns=column_names)
     return report_to_df
+
+def TSEVisualization(dataloader, model ,Projector, device, path, type="test"):
+    save_folder = f"{path}/visualization"
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+
+    model.eval()
+    encoded_samples = []
+    print(f"TRAIN TSNE VISUALIZATION FOR {type}")
+    for sample in tqdm(dataloader.dataset):
+        input = sample[0].unsqueeze(0).to(device)
+        label = sample[1]
+        # Encode image
+        with torch.no_grad():
+            encoded_input  = model.vae.encoder(input)
+        # Append to list
+        encoded_input = encoded_input.flatten().cpu().numpy()
+        encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_input)}
+        encoded_sample['label'] = label
+        encoded_samples.append(encoded_sample)
+        
+    encoded_samples = pd.DataFrame(encoded_samples)
+    encoded_samples
+    #Train TSNE VISILIZATION
+    tsne = TSNE(n_components=2)
+    tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
+    print(f"GENERATE TSNE VISUALIZATION FOR {type}")
+    fig = px.scatter(tsne_results, x=0, y=1, color=encoded_samples.label.astype(str) ,labels={'0': 'tsne-2d-one', '1': 'tsne-2d-two'})
+    print(f"SAVE TSNE VISUALIZATION FOR {type}")
+    # fig.show()
+    fig.write_image(f"{save_folder}/latent_tsne_{type}.png", width=1920, height=1080, scale=3)
+    fig.write_html(f"{save_folder}/latent_tsne_{type}.html")
 
 
