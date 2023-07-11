@@ -181,6 +181,7 @@ def TSEVisualization(dataloader, model ,Projector, device, path, type="test"):
     model.eval()
     encoded_samples = []
     print(f"TRAIN TSNE VISUALIZATION FOR {type}")
+    #add  each data in dataset on encoded list
     for sample in tqdm(dataloader.dataset):
         input = sample[0].unsqueeze(0).to(device)
         label = sample[1]
@@ -192,14 +193,23 @@ def TSEVisualization(dataloader, model ,Projector, device, path, type="test"):
         encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_input)}
         encoded_sample['label'] = label
         encoded_samples.append(encoded_sample)
-        
+    #add  each prototype on encoded list
+    prototypes = model.vae.proto.prototypes.detach()
+    visualisation_size = np.full(shape=len(encoded_samples)+prototypes.shape[0],fill_value=1,dtype=np.int) # define de size of each dot on the latent visualisation plot
+    for j, proto in enumerate(prototypes):
+        encoded_input = proto.flatten().cpu().numpy()
+        encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_input)}
+        encoded_sample['label'] = f"proto {j}"
+        encoded_samples.append(encoded_sample)
+        visualisation_size[-(j+1)] = 4 #proto size more bigger that others
+    # Transform encoded list into dataframe    
     encoded_samples = pd.DataFrame(encoded_samples)
-    encoded_samples
     #Train TSNE VISILIZATION
     tsne = TSNE(n_components=2)
     tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
     print(f"GENERATE TSNE VISUALIZATION FOR {type}")
-    fig = px.scatter(tsne_results, x=0, y=1, color=encoded_samples.label.astype(str) ,labels={'0': 'tsne-2d-one', '1': 'tsne-2d-two'})
+    print(tsne_results)
+    fig = px.scatter(tsne_results, x=0, y=1, color=encoded_samples.label.astype(str) ,labels={'0': 'tsne-2d-one', '1': 'tsne-2d-two'}, size=visualisation_size)
     print(f"SAVE TSNE VISUALIZATION FOR {type}")
     # fig.show()
     fig.write_image(f"{save_folder}/latent_tsne_{type}.png", width=1920, height=1080, scale=3)
