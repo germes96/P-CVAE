@@ -208,7 +208,6 @@ def TSEVisualization(dataloader, model ,Projector, device, path, type="test"):
     tsne = TSNE(n_components=2)
     tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
     print(f"GENERATE TSNE VISUALIZATION FOR {type}")
-    print(tsne_results)
     fig = px.scatter(tsne_results, x=0, y=1, color=encoded_samples.label.astype(str) ,labels={'0': 'tsne-2d-one', '1': 'tsne-2d-two'}, size=visualisation_size)
     print(f"SAVE TSNE VISUALIZATION FOR {type}")
     # fig.show()
