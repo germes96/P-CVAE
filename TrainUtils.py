@@ -9,7 +9,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch
 from prototypeVariational import ProtoVAELoss, ProtoVAEBuilder
-from VariationalNormal import CondVAELoss, CondVAEBuilder
+from VariationalConditional import CondVAELoss, CondVAEBuilder
 loss_F_Vanilla =  ProtoVAELoss()
 loss_F_Cond =  CondVAELoss()
 from utils import printProgressBar

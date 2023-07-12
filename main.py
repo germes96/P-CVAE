@@ -18,7 +18,7 @@ import argparse
 import torch
 import utils
 import prototypeVariational as VAE
-import VariationalNormal as CondVAE
+import VariationalConditional as CondVAE
 from sklearn.metrics import classification_report
 import TrainUtils
 
