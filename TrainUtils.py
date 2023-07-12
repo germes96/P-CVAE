@@ -4,11 +4,14 @@ Authors
  * St Germes Bengono Obiang 2023
  * Norbert Tsopze 2023
 """
+import sys
 import torch.nn.functional as F
 import torch.optim as optim
 import torch
-from prototypeVariational import ProtoVAELoss
-loss_F =  ProtoVAELoss()
+from prototypeVariational import ProtoVAELoss, ProtoVAEBuilder
+from VariationalNormal import CondVAELoss, CondVAEBuilder
+loss_F_Vanilla =  ProtoVAELoss()
+loss_F_Cond =  CondVAELoss()
 from utils import printProgressBar
 import time
 import warnings
@@ -22,6 +25,13 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 def train(model, device, dataloader, optimizer):
     model.train()
     train_loss = 0.0
+    if isinstance(model, ProtoVAEBuilder):
+        loss_F = loss_F_Vanilla
+    elif isinstance(model, CondVAEBuilder):
+        loss_F = loss_F_Cond
+    else:
+        print("Model type not support")
+        sys.exit(1)
     # Iterate the dataloader
     printProgressBar(0, len(dataloader), prefix = 'Train:', suffix = 'Complete', length = 50)
     i = 1
@@ -29,7 +39,7 @@ def train(model, device, dataloader, optimizer):
     for x, y in dataloader:
         # Move tensor to the proper device
         x =  x.to(device)
-        predic, decoded, prototypes = model(x)
+        predic, decoded, prototypes = model(x, y)
         proto = prototypes
         loss =  loss_F(model, target=y, prediction=predic, input_decoded=decoded, input=x)
         #Start back propoagation
@@ -50,6 +60,13 @@ def train(model, device, dataloader, optimizer):
 """
 def valid(model, device, dataloader, label_encoder):
     model.eval()
+    if isinstance(model, ProtoVAEBuilder):
+        loss_F = loss_F_Vanilla
+    elif isinstance(model, CondVAEBuilder):
+        loss_F = loss_F_Cond
+    else:
+        print("Model type not support")
+        sys.exit(1)
     val_loss = 0.0
     correct_predict = 0
     printProgressBar(0, len(dataloader), prefix = 'Valid:', suffix = 'Complete', length = 50)
@@ -60,7 +77,7 @@ def valid(model, device, dataloader, label_encoder):
         for x, y in dataloader:
             # Move tensor to the proper device
             x = x.to(device)
-            predic, decoded, _ = model(x)
+            predic, decoded, _ = model(x, y)
             loss =  loss_F(model, target=y, prediction=predic, input_decoded=decoded, input=x)
             val_loss += loss.item()
             pred = predic.data.max(1, keepdim=True)[1]

@@ -18,6 +18,7 @@ import argparse
 import torch
 import utils
 import prototypeVariational as VAE
+import VariationalNormal as CondVAE
 from sklearn.metrics import classification_report
 import TrainUtils
 
@@ -143,6 +144,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", dest="prototype_number", help="Latent space dimension. -1 if you want this value to be equal to the number of classes in the dataset", type=int, default=-1)
     parser.add_argument("--lr", dest="learning_rate", help="The learning rate in the optimization", type=float, default=1e-3)
     parser.add_argument("--train-projection", dest="train_projection", help="if a projection for training data needs to be generated (y/n)", type=str, default="n")
+    parser.add_argument("--vae-type", dest="vae_type", help="We implement 2 type of variational encoder network (v/c) v for vanilla and c for conditional", type=str, default="v")
     args = parser.parse_args()
     #Load params
     seed = args.seed
@@ -166,7 +168,13 @@ if __name__ == "__main__":
         epoch_number = args.num_epoch
         lr = args.learning_rate
         # Create model
-        model = VAE.ProtoVAEBuilder(latent_dims=latent_dims, n_prototypes=proto_number, num_class=class_number, input_shape=input_shape)
+        if args.vae_type == "v":
+            model = VAE.ProtoVAEBuilder(latent_dims=latent_dims, n_prototypes=proto_number, num_class=class_number, input_shape=input_shape)
+        elif args.vae_type == "c":
+            model = CondVAE.CondVAEBuilder(latent_dims=latent_dims, num_class=class_number, input_shape=input_shape)
+        else:
+            print("model type not support")
+            sys.exit(1)
         # Create execution instance folder
         if not os.path.exists(f"{save_path}{seed}"): 
             os.makedirs(f"{save_path}{seed}")
@@ -192,7 +200,13 @@ if __name__ == "__main__":
         print("START TEST")
         params = utils.loadCSV(path=f"{save_path}{seed}/arg.csv")
         print("LIST OF LOADED PARAMS", params)
-        model = VAE.ProtoVAEBuilder(latent_dims=int(params["latent_dims"]), n_prototypes=int(params["n_prototypes"]), num_class=int(params["num_class"]), input_shape=input_shape)
+        if args.vae_type == "v":
+            model = VAE.ProtoVAEBuilder(latent_dims=int(params["latent_dims"]), n_prototypes=int(params["n_prototypes"]), num_class=int(params["num_class"]), input_shape=input_shape)
+        elif args.vae_type == "c":
+            model = CondVAE.CondVAEBuilder(latent_dims=int(params["latent_dims"]), num_class=int(params["num_class"]), input_shape=input_shape)
+        else:
+            print("Model type not support")
+            sys.exit(1)
         print(model)
         # START TEST ON DATA
         model, stats, labels = test_model(model, test_loader, label_encoder=encoder, seed=seed)

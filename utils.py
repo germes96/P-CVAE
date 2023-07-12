@@ -187,21 +187,27 @@ def TSEVisualization(dataloader, model ,Projector, device, path, type="test"):
         label = sample[1]
         # Encode image
         with torch.no_grad():
-            encoded_input  = model.vae.encoder(input)
+            encoded_input  = model.vae.encoder(input, label)
         # Append to list
         encoded_input = encoded_input.flatten().cpu().numpy()
         encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_input)}
         encoded_sample['label'] = label
         encoded_samples.append(encoded_sample)
     #add  each prototype on encoded list
-    prototypes = model.vae.proto.prototypes.detach()
-    visualisation_size = np.full(shape=len(encoded_samples)+prototypes.shape[0],fill_value=1,dtype=np.int) # define de size of each dot on the latent visualisation plot
-    for j, proto in enumerate(prototypes):
-        encoded_input = proto.flatten().cpu().numpy()
-        encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_input)}
-        encoded_sample['label'] = f"proto {j}"
-        encoded_samples.append(encoded_sample)
-        visualisation_size[-(j+1)] = 4 #proto size more bigger that others
+    if hasattr(model.vae, 'proto'):
+        prototypes = model.vae.proto.prototypes.detach()
+    elif hasattr(model.vae.encoder, 'mean_class'):
+         prototypes = model.vae.encoder.mean_class.detach()
+    if prototypes != None:
+        visualisation_size = np.full(shape=len(encoded_samples)+prototypes.shape[0],fill_value=1,dtype=np.int) # define de size of each dot on the latent visualisation plot
+        for j, proto in enumerate(prototypes):
+            encoded_input = proto.flatten().cpu().numpy()
+            encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_input)}
+            encoded_sample['label'] = f"proto {j}"
+            encoded_samples.append(encoded_sample)
+            visualisation_size[-(j+1)] = 4 #proto size more bigger that others
+    else:
+        visualisation_size = np.full(shape=len(encoded_samples),fill_value=1,dtype=np.int) # define de size of each dot on the latent visualisation plot
     # Transform encoded list into dataframe    
     encoded_samples = pd.DataFrame(encoded_samples)
     #Train TSNE VISILIZATION

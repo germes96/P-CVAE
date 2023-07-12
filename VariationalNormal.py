@@ -7,6 +7,7 @@ Authors
 """
 
 #import core library
+import pandas as pd
 from torch import Tensor, nn
 import torch.nn.functional as F
 from torch.nn import Linear
@@ -52,8 +53,11 @@ class VariationalEncoder(nn.Module):
         Number of input channel. by default x-vector is on one dimention
     """
 
-    def __init__(self, latent_dims, input_shape,  in_channels=1):
+    def __init__(self, latent_dims, input_shape, num_class, in_channels=1):
         super(VariationalEncoder, self).__init__()
+
+        self.latent_dims = latent_dims
+        self.num_class = num_class
 
         self.feature_extractor = torch.torch.nn.Sequential(
             nn.Conv1d(in_channels=in_channels, out_channels=8, kernel_size=3, padding=1, bias=False), # conv1
@@ -67,10 +71,10 @@ class VariationalEncoder(nn.Module):
         )
         self.linear_shape = list(self.feature_extractor(torch.rand(input_shape)).shape)[1]
 
-        # self.conv1 = nn.Conv1d(in_channels=in_channels, out_channels=8, kernel_size=3, padding=1, bias=False)
-        # self.conv2 = nn.Conv1d(in_channels=8, out_channels=16, kernel_size=3, padding=2, bias=False)
-        # self.batch2 = nn.BatchNorm1d(16)
-        # self.conv3 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=2, padding=0)
+        self.conv1 = nn.Conv1d(in_channels=in_channels, out_channels=8, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv1d(in_channels=8, out_channels=16, kernel_size=3, padding=2, bias=False)
+        self.batch2 = nn.BatchNorm1d(16)
+        self.conv3 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=2, padding=0)
         self.linear1 = torch.nn.Linear(self.linear_shape, 128)
         self.linear2 = nn.Linear(128, latent_dims)
         self.linear3 = nn.Linear(128, latent_dims)
@@ -79,7 +83,21 @@ class VariationalEncoder(nn.Module):
         self.N.loc = self.N.loc # hack to get sampling on the GPU
         self.N.scale = self.N.scale
         self.kl = 0
+        self.laten_similarity = 0
+
+        self._init_mean_class()
+        self._init_var_class()
+
+    def _init_mean_class(self):
+        self.mean_class = nn.Parameter(
+            0.1*torch.randn((self.num_class, self.latent_dims))
+        )
+
+    def _init_var_class(self, var_norm: float=1.):
+        self.logvar_class = torch.log(torch.ones((self.num_class, self.latent_dims)))
+        self.logvar_norm = torch.log(torch.Tensor([var_norm]))
     
+
     def reparameterize(self, mu: Tensor, sigma: Tensor) -> Tensor:
         """
         Reparameterization trick to sample from N(mu, var) from
@@ -91,17 +109,35 @@ class VariationalEncoder(nn.Module):
         std = torch.exp(0.5 * sigma)
         eps = torch.randn_like(std)
         return eps * std + mu
-
-    def forward(self, x):
+### Change to introduce the classes labels during training
+    def forward(self, x, labels):
         x = x.to(device)
         x = self.feature_extractor(x)
         x = F.relu(self.linear1(x))
         mu =  self.linear2(x)
         sigma = self.linear3(x)
         z = self.reparameterize(mu, sigma)
-        self.kl = -0.5 *torch.mean(torch.sum(1 + sigma - mu ** 2 - sigma.exp(), dim = 1), dim = 0)
+        self.laten_similarity = list_of_distance(z, self.mean_class)
+        if labels != None: # For the test we don't need the kl loss
+            self.kl = self.calc_kl_loss(mu, sigma, labels).mean(axis=0)
         self.kl = self.kl
         return z
+
+    def calc_kl_loss(self, mu, logvar, labels):
+        one_hot_labels = torch.nn.functional.one_hot(
+            labels, self.num_class
+        ).to(dtype=torch.float)
+        mu_y = torch.matmul(one_hot_labels, self.mean_class)
+        var_y = (torch.exp(self.logvar_norm))*torch.matmul(
+            one_hot_labels, torch.exp(self.logvar_class)
+        )
+        return -0.5 * torch.sum(
+            1 + \
+            logvar - torch.log(var_y) - \
+            (mu - mu_y)**2 / var_y - \
+            logvar.exp() / var_y, 
+            axis=1
+        )
  
 ## Classic Decoder
 class Decoder(nn.Module):
@@ -143,78 +179,25 @@ class Decoder(nn.Module):
         x = torch.sigmoid(x)
         return x
 
-#PrototypeLayer   
-class PrototypeLayer(nn.Module):
-    """
-    the prototyping layer consists of a learnable matrix. each column of this matrix is a prototype. 
 
-    Arguments
-    ---------
-    prototype_dims: int 
-        The dimention of each protype. this corresponds to the size of the variational encoder's latent space.
-    n_prototypes : int
-        The nomber of prototype. greater than or equal to the number of classes to be prototyped
-    """
-    def __init__(self, n_prototypes, latent_dims):
-        super(PrototypeLayer, self).__init__()
-        self.n_prototypes = n_prototypes
-        self.prototypes = torch.nn.Parameter(torch.rand([n_prototypes, latent_dims]), requires_grad=True)
-        self.R_1 = 0 #Feature distances regulation
-        self.R_2 = 0 #Prototypes distances regulation
-        self.R_3 = 0 #Prototypes to prototypes distances
-        self.laten_similarity = 0 # Prototypes distances
-    def computeRegulation(self, distance_list):
-
-        min = torch.min(distance_list, dim=1)
-        return torch.mean(min.values)
-    
-    def forward(self, x):
-        #compute distance
-        '''
-        For each prototype we compute the distance to every feature
-        '''
-        distance_to_features = list_of_distance(self.prototypes, x)
-        # print(x.shape, self.prototypes.shape)
-        self.R_1 = torch.mean(torch.min(distance_to_features, dim=1).values)
-        '''
-        For each feature we compute the distance to every prototype
-        '''
-        distance_to_prototypes = list_of_distance(x, self.prototypes)
-        self.R_2 = torch.mean(torch.min(distance_to_prototypes, dim=1).values)
-        proto_to_proto = list_of_distance(self.prototypes, self.prototypes)
-        #remove all zero value
-        proto_to_proto_non_zero = proto_to_proto.clone()
-        proto_to_proto_non_zero[proto_to_proto==0] = 1e+6
-        self.R_3 = torch.mean(torch.min(proto_to_proto_non_zero, dim=1).values)
-
-        self.laten_similarity = distance_to_prototypes
-        if not torch.isfinite(distance_to_prototypes).all():
-            print(distance_to_prototypes)
-            raise InterruptedError("invilid data")
-    
-        y = self.prototypes * torch.sum(x) #for fun
-        return x
 
 # Variational auto encoder
 class VariationalAutoencoder(nn.Module):
     """This module realizes the principle of variational autoencoding with prototypes. 
         This module implements the principle of variational autoencoding with prototypes. It therefore couples the autoencoder layer, the decoder and the prototyping layer.
     """
-    def __init__(self, latent_dims, n_prototypes, in_channels, input_shape):
+    def __init__(self, latent_dims, num_class, in_channels, input_shape):
         super(VariationalAutoencoder, self).__init__()
         #ENCODER LAYER
-        self.encoder = VariationalEncoder(latent_dims=latent_dims, in_channels=in_channels, input_shape = input_shape)
-        #PROTOTYPE LAYER
-        self.proto = PrototypeLayer(latent_dims=latent_dims, n_prototypes=n_prototypes)
+        self.encoder = VariationalEncoder(latent_dims=latent_dims, in_channels=in_channels, num_class=num_class, input_shape = input_shape)
         #DECODER LAYER
         self.decoder = Decoder(latent_dims=latent_dims, out_channels=in_channels, output_shape =  self.encoder.linear_shape)
 
-    def forward(self, x):
+    def forward(self, x, labels):
         x = x.to(device)
-        z = self.encoder(x)
+        z = self.encoder(x, labels)
         #send data to prototype layer to compute distance
-        _ = self.proto(z)
-        return self.decoder(z), self.proto.prototypes , self.proto.laten_similarity
+        return self.decoder(z), self.encoder.mean_class , self.encoder.laten_similarity
 
 
 # Variational auto-encoder +  Classification layer
@@ -242,7 +225,7 @@ class ClassifProto(torch.nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x)
     
-class ProtoVAEBuilder(torch.nn.Module):
+class CondVAEBuilder(torch.nn.Module):
     """This module couples the different modules. encoder, prototyping layer, decoder and classification layer.
 
     Arguments
@@ -261,41 +244,36 @@ class ProtoVAEBuilder(torch.nn.Module):
     Example
     -------
     >>> inp_tensor = torch.rand([64, 1, 256])
-    >>> net = ProtoVAEBuilder(latent_dims=4, n_prototypes=2, num_class=2)
+    >>> net = CondVAEBuilder(latent_dims=4, n_prototypes=2, num_class=2)
     >>> net.to(device)
     >>> out_tensor, decoded, prototype = net(inp_tensor)
     >>> print("classif output: ", out_tensor.shape, "Decoder output", decoded.shape, "Prototypes: ", prototype.shape)
     >>>
     torch.Size([4, 10, 5])
     """
-    def __init__(self, input_shape, latent_dims=4, n_prototypes=2, num_class=2, in_channels=1, hidden_size=50):
-        super(ProtoVAEBuilder, self).__init__()
-        self.vae = VariationalAutoencoder(latent_dims=latent_dims, n_prototypes=n_prototypes, in_channels=in_channels, input_shape = input_shape)
-        self.fcn = ClassifProto(input_dim=n_prototypes, ouput_dim=num_class, hidden_size=hidden_size)
+    def __init__(self, input_shape, latent_dims=4, num_class=2, in_channels=1, hidden_size=50):
+        super(CondVAEBuilder, self).__init__()
+        self.vae = VariationalAutoencoder(latent_dims=latent_dims, num_class=num_class, in_channels=in_channels, input_shape = input_shape)
+        self.fcn = ClassifProto(input_dim=num_class, ouput_dim=num_class, hidden_size=hidden_size)
 
-    def forward(self, x, labels): #for this version label is not use
-        decoded, prototypes ,latent_sim = self.vae(x)
+    def forward(self, x, labels):
+        decoded, mean_class ,latent_sim = self.vae(x, labels)
         predic = self.fcn(latent_sim) 
-        return predic, decoded, prototypes
+        return predic, decoded, mean_class
     
-class ProtoVAELoss(nn.Module):
+class CondVAELoss(nn.Module):
     def __init__(self):
-        super(ProtoVAELoss, self).__init__()
+        super(CondVAELoss, self).__init__()
 
     """
         kld_weight: float
         model: ProtoVAEBuilder
         The reduction factor of the Kullback-Leibler divergence
     """
-    def forward(self, model,prediction,target, input, input_decoded, alpha_R1 = 0.5, alpha_R2 = 0.5, alpha_R3=0.02,  kld_weight=0.0025):
-        classif_loss = F.nll_loss(prediction, target) #classif error
-        reconst_error = F.mse_loss(input_decoded, input) # reconst error
+    def forward(self, model,prediction,target, input, input_decoded,  kld_weight=0.0025):
+        classif_loss = F.nll_loss(prediction, target)
+        reconst_error = F.mse_loss(input_decoded, input)
         kl_loss = model.vae.encoder.kl * kld_weight
-        R_1 = model.vae.proto.R_1 * alpha_R1
-        R_2 = model.vae.proto.R_2 * alpha_R2 
-        R_3 = (1/( model.vae.proto.R_3+ 1)) * alpha_R3
-        loss =   classif_loss + reconst_error + kl_loss + R_1 + R_2 + R_3
-        # Mask for misclassification on specific class
-        # mask = target == 9
-        # high_cost = (loss * mask.float()).mean()
-        return loss # + high_cost
+        loss = classif_loss + reconst_error + kl_loss
+        return loss
+ 
