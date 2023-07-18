@@ -173,6 +173,21 @@ def classification_report_to_dataframe(str_representation_of_report):
     report_to_df = pd.DataFrame(data=values, columns=column_names)
     return report_to_df
 
+def saveLatentSpace(model, dataloader, label_encoder, device, path):
+      with open(f'{path}/latent_projections.csv', "w+") as f:
+        f.write('label, latent')
+        f.write('\n') # Add a new line
+        for sample in tqdm(dataloader.dataset, desc="SAVE LATENT PROJECTION"):
+            input = sample[0].unsqueeze(0).to(device)
+            label = sample[1].tolist()
+            label = label_encoder.inverse_transform([label])
+            with torch.no_grad():
+                encoded_input  = model.vae.encoder(input, sample[1])
+            #Write data_on csv
+            f.write(f'{label[0]}, {encoded_input.detach()[0].numpy()}')
+            f.write('\n') # Add a new line
+            
+
 def TSEVisualization(dataloader, model ,Projector, device, path, type="test"):
     save_folder = f"{path}/visualization"
     if not os.path.exists(save_folder):
@@ -219,5 +234,13 @@ def TSEVisualization(dataloader, model ,Projector, device, path, type="test"):
     # fig.show()
     fig.write_image(f"{save_folder}/latent_tsne_{type}.png", width=1920, height=1080, scale=3)
     fig.write_html(f"{save_folder}/latent_tsne_{type}.html")
+
+
+
+# main_loader, valid_loader, data_shape, label_number, encoder = loadCSVDataset(path="dataset/VoxCeleb/emo_meta2.csv", validation_plit=True)
+# main_loader, valid_loader, data_shape, label_number, encoder = loadCSVDataset(path="dataset/Gender/ALLIES/gender_x-vector_train.csv", validation_plit=True)
+# print(label_number)
+# print(data_shape)
+# print(len(main_loader.dataset))
 
 

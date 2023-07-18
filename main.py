@@ -213,5 +213,6 @@ if __name__ == "__main__":
         report = classification_report(labels['target'], labels['predict'])
         print(f"\n\n{report}")
         utils.classification_report_csv(path=f"{save_path}{seed}", report=report)
+        utils.saveLatentSpace(dataloader=test_loader, model=model, label_encoder=encoder, device=device, path=f"{save_path}{seed}")
         utils.TSEVisualization(dataloader=test_loader, model=model, Projector=model.vae.encoder, device=device, path=f"{save_path}{seed}")
     # print(stats)
