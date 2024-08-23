@@ -1,14 +1,3 @@
-"""
-DOTO
-
-- load dataset: done
-- create model: done
-- Train model: done
-- save model: done
-- load model
-- evaluate model
-- display data
-"""
 import uuid
 import datetime
 import os
@@ -18,7 +7,8 @@ import argparse
 import torch
 import utils
 import prototypeVariational as VAE
-import VariationalConditional as CondVAE
+# import VariationalConditional as CondVAE
+import ProtoCondVariational as CondVAE
 from sklearn.metrics import classification_report
 import TrainUtils
 
@@ -31,24 +21,49 @@ save_path="models/"
 
 
 def load_checkpoint(model, optimizer=None, filename='checkpoint.pth.tar'):
+    """
+    Load a pre-trained model from a given checkpoint file.
+
+    Args:
+        model (nn.Module): The model to be loaded. Note that this model should be pre-defined.
+        optimizer (torch.optim.Optimizer): The optimizer to be loaded. If set to None, the optimizer state will not be loaded.
+        filename (str): The file name of the checkpoint file to be loaded.
+
+    Returns:
+        tuple: A tuple containing the loaded model, optimizer (if optimizer is not None) and the start epoch.
+    """
     # Note: Input model & optimizer should be pre-defined.  This routine only updates their states.
     start_epoch = 0
     if os.path.isfile(filename):
-        print("=> loading checkpoint '{}'".format(filename))
+        print(f"=> loading checkpoint '{filename}'")
         checkpoint = torch.load(filename)
         start_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['state_dict'])
-        if optimizer != None: 
+        if optimizer is not None: 
             optimizer.load_state_dict(checkpoint['optimizer'])
-        print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(filename, checkpoint['epoch']))
+        print(f"=> loaded checkpoint '{filename}' (epoch {checkpoint['epoch']})")
     else:
-        print("=> no checkpoint found at '{}'".format(filename))
+        print(f"=> no checkpoint found at '{filename}'")
 
     return model, optimizer, start_epoch
 
 
 def train_model(model, train_loader, valid_loader, label_encoder, epoch_number=50, lr=1e-3, seed = 0):
+    """
+    Train a model using the given train and validation data, and save the best model.
+
+    Args:
+        model: The model to be trained.
+        train_loader: The data loader for the training data.
+        valid_loader: The data loader for the validation data.
+        label_encoder: The label encoder for the classification task.
+        epoch_number: The number of epochs to train the model. Defaults to 50.
+        lr: The learning rate for the optimizer. Defaults to 1e-3.
+        seed: The seed for the random number generator. Defaults to 0.
+
+    Returns:
+        tuple: A tuple containing the trained model, and the stats of the training.
+    """
     optim = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
     start_epoch = 0
     # if checkpoint exist, load. else create dir
@@ -59,13 +74,6 @@ def train_model(model, train_loader, valid_loader, label_encoder, epoch_number=5
 
     old_acc = 0
     best_epochs = 1
-    # Dictionary to save stats
-    # stats= {
-    #     "train_loss": [],
-    #     "valid_loss": [],
-    #     "valid_acc": [],
-    #     "best_epochs": 1
-    # }
 
     stats = []
     best_epochs = 1
@@ -112,12 +120,36 @@ def train_model(model, train_loader, valid_loader, label_encoder, epoch_number=5
     utils.saveTrainStatsCSV(path=f"{save_path}{seed}", stats=proto, file_name="prototype.csv", open_option='w')
     return model, stats
 
-def test_model(model, test_loader, label_encoder, seed = 0):
+def test_model(model, test_loader, label_encoder, seed=0):
+    """
+    Test a model by loading a checkpoint and computing the test loss and accuracy.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to be tested.
+    test_loader : torch.utils.data.DataLoader
+        The data loader for the test data.
+    label_encoder : LabelEncoder
+        The label encoder for the target labels.
+    seed : int, optional
+        The seed for the random number generator. Defaults to 0.
+
+    Returns
+    -------
+    model : torch.nn.Module
+        The model with the loaded checkpoint.
+    stats : list
+        A list containing the test loss, accuracy, and correct predictions.
+    labels : list
+        The target labels and the predicted labels.
+    """
+
     start_epoch = 0
     # if checkpoint exist, load. else create dir
     if os.path.exists(f"{save_path}{seed}"):  # load old model
-       model, optim, start_epoch = load_checkpoint(model=model, filename=f"{save_path}{seed}/checkpoint.pth.tar")
-    else:  #create dire
+        model, optim, start_epoch = load_checkpoint(model=model, filename=f"{save_path}{seed}/checkpoint.pth.tar")
+    else:  # create dir
         os.makedirs(f"{save_path}{seed}")
 
     test_loss, acc, correct_predict, labels = TrainUtils.valid(model, device, test_loader, label_encoder=label_encoder)
@@ -140,7 +172,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", dest="seed", help="the number of the training unit in which the results will be stored", type=int, default=100)
     parser.add_argument("-n", dest="num_epoch", help="number of training epoch", type=int, default=50)
     parser.add_argument("-t", dest="type", help="Allows you to specify whether it's a training session or a test (train or test).", type=str, default="train")
-    parser.add_argument("-l", dest="latent_dim", help="Latent space dimension.", type=int, default=4)
+    parser.add_argument("-l", dest="latent_dim", help="Latent space dimension.", type=int, default=2)
     parser.add_argument("-p", dest="prototype_number", help="Latent space dimension. -1 if you want this value to be equal to the number of classes in the dataset", type=int, default=-1)
     parser.add_argument("--lr", dest="learning_rate", help="The learning rate in the optimization", type=float, default=1e-3)
     parser.add_argument("--train-projection", dest="train_projection", help="if a projection for training data needs to be generated (y/n)", type=str, default="n")
@@ -171,6 +203,7 @@ if __name__ == "__main__":
         if args.vae_type == "v":
             model = VAE.ProtoVAEBuilder(latent_dims=latent_dims, n_prototypes=proto_number, num_class=class_number, input_shape=input_shape)
         elif args.vae_type == "c":
+            print("consitional")
             model = CondVAE.CondVAEBuilder(latent_dims=latent_dims, num_class=class_number, input_shape=input_shape)
         else:
             print("model type not support")

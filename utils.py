@@ -21,14 +21,67 @@ import plotly.express as px
 from tqdm import tqdm
 
 def str2List(values):
+    """
+    Convert a list of string containing a list of float separated by space
+    to a numpy array.
+
+    Parameters
+    ----------
+    values : list of str
+        A list of string containing a list of float separated by space.
+
+    Returns
+    -------
+    numpy array
+        A numpy array containing the list of float from the string.
+    """
     result = []
     for value in values:
+        # Remove the [] from the string
         nlist = value.strip("[]").split()
+        # Convert the string to float
         nlist = [float(x) for x in nlist]
+        # Add the list to the result
         result.append(nlist)
+    # Convert the result to numpy array
     return np.array(result)
 
 def loadCSVDataset(path, batch_size=256, validation_plit=False, valid_size=0.1, x_vector_field_name = "embedding", label_field= "label"):
+    """
+    Load a csv dataset and return a data loader.
+
+    Parameters
+    ----------
+    path : str
+        The path to the csv file.
+    batch_size : int, optional
+        The batch size of the data loader. The default is 256.
+    validation_plit : bool, optional
+        If True, split the dataset into a training set and a validation set.
+        The default is False.
+    valid_size : float, optional
+        The proportion of the dataset to use for the validation set.
+        The default is 0.1.
+    x_vector_field_name : str, optional
+        The name of the column containing the vector data.
+        The default is "embedding".
+    label_field : str, optional
+        The name of the column containing the labels.
+        The default is "label".
+
+    Returns
+    -------
+    main_loader : DataLoader
+        The data loader for the main dataset.
+    valid_loader : DataLoader
+        The data loader for the validation set.
+    data_shape : list
+        The shape of the data.
+    label_number : int
+        The number of labels.
+    encoder : LabelEncoder
+        The label encoder.
+    """
     encoder = LabelEncoder()
     data = pd.read_csv(path, converters={f"{x_vector_field_name}": lambda x: x.replace('\n', '').strip()})
     X = str2List(data[f"{x_vector_field_name}"].to_numpy()) 
@@ -44,7 +97,7 @@ def loadCSVDataset(path, batch_size=256, validation_plit=False, valid_size=0.1, 
     y = torch.flatten(y).type(torch.LongTensor)
 
     data_shape = list(X[0].shape)
-    # print("Data shape", data_shape)
+    print("Data shape", data_shape)
     data_shape.insert(0, batch_size)
 
     if validation_plit:
@@ -60,6 +113,41 @@ def loadCSVDataset(path, batch_size=256, validation_plit=False, valid_size=0.1, 
         return main_loader, data_shape, label_number, encoder
     
 def loadPKLDataset(path, batch_size=256, validation_plit=False, valid_size=0.1, embedding_field = "embedding", label_field= "label"):
+    """
+    Load a dataset from a pickle file and return a data loader.
+
+    Parameters
+    ----------
+    path : str
+        The path to the pickle file.
+    batch_size : int, optional
+        The batch size of the data loader. The default is 256.
+    validation_plit : bool, optional
+        If True, split the dataset into a training set and a validation set.
+        The default is False.
+    valid_size : float, optional
+        The proportion of the dataset to use for the validation set.
+        The default is 0.1.
+    embedding_field : str, optional
+        The name of the column containing the vector data.
+        The default is "embedding".
+    label_field : str, optional
+        The name of the column containing the labels.
+        The default is "label".
+
+    Returns
+    -------
+    main_loader : DataLoader
+        The data loader for the main dataset.
+    valid_loader : DataLoader
+        The data loader for the validation set.
+    data_shape : list
+        The shape of the data.
+    label_number : int
+        The number of labels.
+    encoder : LabelEncoder
+        The label encoder.
+    """
     encoder = LabelEncoder()
     with open(path, 'rb') as f:
         df = pd.read_pickle(f)
@@ -71,7 +159,7 @@ def loadPKLDataset(path, batch_size=256, validation_plit=False, valid_size=0.1, 
         y = encoder.transform(y)
         print(y[200])
 
-        #################################### Convert 2tensor data ###########################################
+        # Convert to tensor data
         X = torch.tensor(X, dtype=torch.float32)
         X =  X.reshape(X.size()[0], 1, X.size()[1])
         y = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
@@ -81,14 +169,14 @@ def loadPKLDataset(path, batch_size=256, validation_plit=False, valid_size=0.1, 
         print("DATA SHAPE", data_shape)
 
         if validation_plit:
-            # split datset
+            # Split dataset
             X_main, X_valid, y_main, y_valid = train_test_split(X, y, train_size=(1-valid_size), shuffle=True)
-            # create data loader
+            # Create data loader
             main_loader = DataLoader(list(zip(X_main, y_main)), shuffle=True, batch_size=batch_size)
             valid_loader = DataLoader(list(zip(X_valid,y_valid)), batch_size=batch_size)
             return main_loader, valid_loader, data_shape, label_number, encoder 
         else:
-            # create data loader
+            # Create data loader
             main_loader = DataLoader(list(zip(X, y)), shuffle=True, batch_size=batch_size)
             return main_loader, data_shape, label_number, encoder
         
@@ -118,18 +206,59 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 # save all execution dependancy
 def savepackage(path):
+    """
+    Save all packages and their version in a text file env.log
+    in the given directory.
+    """
+    # Get all packages and their version
     dists = [str(d).replace(" ",  "==") for d in pkg_resources.working_set]
     # Create env.log file
     with open(f'{path}/env.log', 'w') as log:
+        # Write header
         log.write('VAE-C Environement Description\n==============================\n')
-        log.write(f'Python version:\n{sys.version} ({datetime.datetime.now()})\n==============================\n')
-        for pack in dists:  log.write(f"{pack}\n")
+        # Write python version
+        log.write(f'Python version:\n{sys.version} ({datetime.datetime.now()})\n')
+        # Write separator
+        log.write("==============================\n")
+        # Write packages and their version
+        for pack in dists:  
+            log.write(f"{pack}\n")
 
 def saveTrainLog(path, log):
+    """
+    Save the given log to a file named "train_log.log" in the given path.
+    
+    Parameters
+    ----------
+    path : str
+        The path where the log file should be saved.
+    log : str
+        The log to save.
+    """
     with open(f'{path}/train_log.log', 'a') as file:
+        # Write the log to the file
         file.write(f'{log}\n')
 
-def saveTrainStatsCSV(path, stats, file_name = "train_stats.csv", open_option="a+"):
+def saveTrainStatsCSV(path, stats, file_name="train_stats.csv", open_option="a+"):
+    """
+    Save the traning stats to a CSV file named `file_name` in the given `path`.
+    
+    Parameters
+    ----------
+    path : str
+        The path where the CSV file should be saved.
+    stats : list of dict
+        The stats to save.
+    file_name : str, optional
+        The name of the CSV file. Default is "train_stats.csv".
+    open_option : str, optional
+        The option to open the file. Default is "a+" which means append.
+    
+    Notes
+    -----
+    If the file does not exist, it will be created. If the file already exists, the
+    data will be appended to the file.
+    """
     file_exist = False
     if os.path.exists(f'{path}/{file_name}'):
         file_exist = True
@@ -144,39 +273,109 @@ def saveTrainStatsCSV(path, stats, file_name = "train_stats.csv", open_option="a
             f.write('\n') # Add a new line
 
 def loadCSV(path):
+    """
+    Load the first row of a CSV file into a dictionary.
+    
+    Parameters
+    ----------
+    path : str
+        The path to the CSV file.
+    
+    Returns
+    -------
+    dict
+        The first row of the CSV file loaded into a dictionary.
+    """
     with open(path, 'r') as f:    
         dict_reader = DictReader(f)
         list_of_dict = list(dict_reader)
+        # Return only the first row of the CSV file.
         return list_of_dict[0]
     
 def classification_report_csv(report, path):
+    """
+    Save the classification report to a CSV file.
+    
+    Parameters
+    ----------
+    report : str
+        The classification report as a string.
+    path : str
+        The path to the directory where the CSV file will be saved.
+    
+    Returns
+    -------
+    None
+    """
     report_to_df = classification_report_to_dataframe(report)
     report_to_df.to_csv(f'{path}/classification_report.csv', index = False)
 
 def classification_report_to_dataframe(str_representation_of_report):
+    """
+    Convert the classification report from a string to a pandas DataFrame.
+
+    Parameters
+    ----------
+    str_representation_of_report : str
+        The classification report as a string.
+
+    Returns
+    -------
+    pd.DataFrame
+        The classification report converted to a pandas DataFrame.
+    """
+    # Split the string into a table where each row is a list of values
     split_string = [x.split(' ') for x in str_representation_of_report.split('\n')]
+    # Get the column names from the first row of the table
     column_names = ['']+[x for x in split_string[0] if x!='']
+    # Initialize an empty list to store the rows of the DataFrame
     values = []
+    # Iterate through the table and add each row to the DataFrame
     for table_row in split_string[1:-1]:
         table_row = [value for value in table_row if value!='']
         if table_row!=[]:
             values.append(table_row)
+    # Iterate through the DataFrame and add the 'avg' and 'total' rows
     for i in values:
         for j in range(len(i)):
+            # Check if the value is 'avg'
             if i[1] == 'avg':
+                # Join the first two values with a space
                 i[0:2] = [' '.join(i[0:2])]
+            # Check if the length of the row is 3
             if len(i) == 3:
+                # Insert NaN values in the second and third positions
                 i.insert(1,np.nan)
                 i.insert(2, np.nan)
             else:
                 pass
+    # Create the DataFrame
     report_to_df = pd.DataFrame(data=values, columns=column_names)
+    # Return the DataFrame
     return report_to_df
 
 def saveLatentSpace(model, dataloader, label_encoder, device, path):
-      with open(f'{path}/latent_projections.csv', "w+") as f:
+    """
+    Save the latent space of the model to a CSV file.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to save the latent space of.
+    dataloader : torch.utils.data.DataLoader
+        The dataloader for the data set.
+    label_encoder : sklearn.preprocessing.LabelEncoder
+        The label encoder for the target labels.
+    device : torch.device
+        The device to use for the computation.
+    path : str
+        The path to save the CSV file to.
+    """
+    with open(f'{path}/latent_projections.csv', "w+") as f:
+        # Write the header line
         f.write('label, latent')
         f.write('\n') # Add a new line
+        # Iterate through the data set and write each sample to the CSV file
         for sample in tqdm(dataloader.dataset, desc="SAVE LATENT PROJECTION"):
             input = sample[0].unsqueeze(0).to(device)
             label = sample[1].tolist()
@@ -189,6 +388,24 @@ def saveLatentSpace(model, dataloader, label_encoder, device, path):
             
 
 def TSEVisualization(dataloader, model ,Projector, device, path, type="test"):
+    """
+    Train TSNE VISUALIZATION FOR THE DATASET
+
+    Parameters
+    ----------
+    dataloader : torch.utils.data.DataLoader
+        The dataloader for the data set.
+    model : torch.nn.Module
+        The model to use for the TSNE visualization.
+    Projector : torch.nn.Module
+        The projector to use for the TSNE visualization.
+    device : torch.device
+        The device to use for the computation.
+    path : str
+        The path to save the CSV file to.
+    type : str
+        The type of the visualization. Default is 'test'.
+    """
     save_folder = f"{path}/visualization"
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)

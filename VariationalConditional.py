@@ -170,6 +170,12 @@ class Decoder(nn.Module):
         self.d_conv3 = nn.ConvTranspose1d(in_channels= 8, out_channels=out_channels, kernel_size=3, padding=1 ,output_padding=0)
 
     def forward(self, x):
+        """
+        The forward pass of the decoder.
+
+        :param x: The input to the decoder
+        :return: The output of the decoder
+        """
         x = self.decoder_lin(x)
         x = self.linear1(x)
         x = self.unflatten(x)
@@ -271,6 +277,29 @@ class CondVAELoss(nn.Module):
         The reduction factor of the Kullback-Leibler divergence
     """
     def forward(self, model,prediction,target, input, input_decoded,  kld_weight=0.0025):
+        """
+        Compute the total loss for the model.
+
+        Parameters
+        ----------
+        model : ProtoVAEBuilder
+            The model to be trained.
+        prediction : torch.tensor
+            The output of the classification layer.
+        target : torch.tensor
+            The target of the classification layer.
+        input : torch.tensor
+            The input of the autoencoder.
+        input_decoded : torch.tensor
+            The decoded input of the autoencoder.
+        kld_weight : float 
+            The reduction factor of the KL divergence loss.
+
+        Returns
+        -------
+        loss : torch.tensor
+            The total loss of the model.
+        """
         classif_loss = F.nll_loss(prediction, target)
         reconst_error = F.mse_loss(input_decoded, input)
         kl_loss = model.vae.encoder.kl * kld_weight

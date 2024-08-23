@@ -9,7 +9,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch
 from prototypeVariational import ProtoVAELoss, ProtoVAEBuilder
-from VariationalConditional import CondVAELoss, CondVAEBuilder
+from ProtoCondVariational import CondVAELoss, CondVAEBuilder
 loss_F_Vanilla =  ProtoVAELoss()
 loss_F_Cond =  CondVAELoss()
 from utils import printProgressBar
@@ -23,6 +23,29 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
     model: ProtoVAEBuilder
 """
 def train(model, device, dataloader, optimizer):
+    """
+    Train the model.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to be trained.
+    device : torch.device
+        The device to use for training.
+    dataloader : torch.utils.data.DataLoader
+        The data loader for the training data.
+    optimizer : torch.optim.Optimizer
+        The optimizer to use for training.
+
+    Returns
+    -------
+    avg_loss : float
+        The average loss of the model after training.
+    optimizer : torch.optim.Optimizer
+        The optimizer used for training.
+    proto : torch.Tensor
+        The prototypes of the model.
+    """
     model.train()
     train_loss = 0.0
     if isinstance(model, ProtoVAEBuilder):
@@ -59,6 +82,31 @@ def train(model, device, dataloader, optimizer):
      model: ProtoVAEBuilder
 """
 def valid(model, device, dataloader, label_encoder):
+    """
+    Evaluate the model on a validation set.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to be evaluated.
+    device : torch.device
+        The device to use for evaluation.
+    dataloader : torch.utils.data.DataLoader
+        The data loader for the validation data.
+    label_encoder : LabelEncoder
+        The label encoder for the target labels.
+
+    Returns
+    -------
+    val_loss : float
+        The average loss of the model on the validation data.
+    acc : float
+        The accuracy of the model on the validation data.
+    correct_predict : int
+        The number of correctly predicted labels.
+    labels : dict
+        The target labels and the predicted labels.
+    """
     model.eval()
     if isinstance(model, ProtoVAEBuilder):
         loss_F = loss_F_Vanilla
@@ -83,9 +131,7 @@ def valid(model, device, dataloader, label_encoder):
             pred = predic.data.max(1, keepdim=True)[1]
             correct_predict += pred.eq(y.data.view_as(pred)).sum()
             printProgressBar(i, len(dataloader), prefix = 'Valid:', suffix = f'Batch loss: {round(val_loss/i,3)}', length = 50)
-            # print(label_encoder.inverse_transform(y), "  -> " ,label_encoder.inverse_transform(pred))
-            # print(y.tolist())
-            # labels.extend(y.tolist())
+            # Save the target labels and the predicted labels
             target_labels.extend(label_encoder.inverse_transform(y))
             predict_labels.extend(label_encoder.inverse_transform(pred.detach()))
             i=i+1
