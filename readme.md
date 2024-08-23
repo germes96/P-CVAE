@@ -49,7 +49,8 @@ The project includes the following architectures:
 - `--train-projection` (str): Whether to generate a projection for training data (`y` or `n`). Default is `n`.
 - `--vae-type` (str): Type of variational encoder network (`v` for vanilla VAE, `c` for conditional VAE). Default is `v`.
 
-### Datasets
+
+### Datasets 📂
 This project uses the following datasets:
 
 1. **ALLIES Dataset**:
@@ -69,7 +70,26 @@ This project uses the following datasets:
       ```
       For more details, visit [VoxCeleb official site](http://www.robots.ox.ac.uk/~vgg/data/voxceleb/).
 
-Ensure that the dataset paths and formats are correctly specified when running the scripts.
+### Dataset Preparation 🛠️
+1. **Create a `dataset` Folder**:
+   - Before running the scripts, create a `dataset` folder in the root directory of the project.
+
+2. **Unzip X-vectors**:
+   - Download the x-vector files for the ALLIES and VoxCeleb datasets from the provided  [Google Drive link](https://drive.google.com/drive/folders/1fGfJHvAUdTDV4SZ8owOV550-4AjfibTk?usp=sharing).
+   - Unzip these files into the `dataset` folder.
+
+3. **Directory Structure**:
+   - Ensure that the unzipped files follow the correct directory structure within the `dataset` folder. For example:
+     ```
+     project-root/
+     ├── dataset/
+     │   ├── VoxCeleb/
+     │   └── Gender/
+     │       └── ALLIES/
+     └── ...
+     ```
+
+Make sure to set the correct paths to these datasets when running the scripts.
 
 
 
