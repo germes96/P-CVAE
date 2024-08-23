@@ -1,16 +1,16 @@
 # Variational autoencoder (VAE) for a Prototype-Based Explainable Neural Network
 
 ## Overview  🚀📚
-This project implements a prototype-based variational autoencoder (VAE) architecture, designed to enhance both the performance and explainability of machine learning models. By integrating prototype-based methods with VAEs, the architecture provides intuitive and interpretable representations of data, making it easier to understand and analyze the learned features. The project includes multiple variants of the architecture, such as a classic VAE, a VAE with a classification layer, and a prototype-based VAE. It supports both CSV and Pickle formats for datasets.
+This project implements a **prototype-based variational autoencoder (VAE**) architecture, designed to enhance both the performance and explainability of machine learning models. By integrating prototype-based methods with VAEs, the architecture provides intuitive and interpretable representations of data, making it easier to understand and analyze the learned features. The project includes multiple variants of the architecture, such as a classic VAE, a VAE with a classification layer, and a prototype-based VAE. It supports both CSV and Pickle formats for datasets.
 
 
 ## Models
 The project includes the following architectures:
-- Classic Variational Autoencoder (VAE): This architecture is a standard VAE implementation, without any additional components.
+- **Classic Variational Autoencoder (VAE)**: This architecture is a standard VAE implementation, without any additional components.
 
-- Prototype-Based Variational Autoencoder (ProtoVAE): This architecture combines a VAE with a prototype-based method, where the prototypes are learned during training.
+- **Prototype-Based Variational Autoencoder (ProtoVAE)**: This architecture combines a VAE with a prototype-based method, where the prototypes are learned during training.
 
-- Variational Autoencoder with Classification Layer (CondVAE): This architecture adds a classification layer on top of the VAE, allowing for semi-supervised learning.
+- **Variational Autoencoder with Classification Layer (CondVAE)**: This architecture adds a classification layer on top of the VAE, allowing for semi-supervised learning.
 
 ## Prerequisites
 - Python 3.10.11
@@ -23,15 +23,15 @@ The project includes the following architectures:
 - Kaleido (version 0.2.1)
 
 ## Installation
-1. Clone the repository:
+1. **Clone the repository**:
     ```bash
-    git clone https://github.com/your-repo/Prototyped-VAE-C.git
+    git clone https://github.com/germes96/P-CVAE.git
     ```
-2. Navigate to the project directory:
+2. **Navigate to the project directory**:
     ```bash
-    cd Prototyped-VAE-C
+    cd P-CVAE
     ```
-3. Install the required dependencies:
+3. **Install the required dependencies**:
     ```bash
     pip install -r requirements.txt
     ```
@@ -134,3 +134,5 @@ Model checkpoints are automatically saved during training in the `models/` direc
 - **Dataset Format**: Ensure that the dataset is properly formatted and matches the specified format (`csv` or `pkl`).
 - **Warnings Ignored**: The project ignores warnings by default for a cleaner output. Modify the code to enable warnings if needed.
 
+## License
+This project is licensed under the MIT License. 
